@@ -1,6 +1,6 @@
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, DataCollatorWithPadding
 from datasets import load_dataset
 from torch.utils.data import DataLoader
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, DataCollatorWithPadding
 
 
 # Initialize the same as before
@@ -11,6 +11,7 @@ sequences = [
     "I've been waiting for a HuggingFace course my whole life.",
     "This course is amazing!",
 ]
+
 
 #--------------------- DATASETS --------------------#
 # HF also contains a datasets library (train, validation, test)
@@ -29,6 +30,7 @@ print(f"87th element of validation dataset: {raw_valid_dataset[86]}")
 # find corresponding labels to the integer by accessing the dataset's features
 print(f"\nfeatures of train dataset: {raw_train_dataset.features}")
 
+
 #--------------------- PREPROCESSING --------------------#
 # the tokenizer can handle pairs of sentences directly:
 inputs = tokenizer("This is the first sentence.", "This is the second one.")
@@ -45,7 +47,6 @@ print(f"sentence 1 tokenized: {s15_1}")
 print(f"sentence 2 tokenized: {s15_2}")
 print(f"sentence 1 & 2 tokenized: {s15_1_2}")
 
-
 # tokenize batches of examples with a worker function
 def tokenize_fct(examples):
     return tokenizer(examples["sentence1"], examples["sentence2"], truncation=True, padding="max_length", max_length=128)
@@ -57,7 +58,6 @@ tokenized_datasets = raw_datasets.map(tokenize_fct)
 tokenized_datasets_orig = raw_datasets.map(tokenize_fct, batched=True)
 print(f"\ncolumn names: {tokenized_datasets.column_names}")
 
-
 # Preprocessing: set dataset format to PyTorch tensors according to ml framework
 tokenized_datasets = tokenized_datasets.remove_columns(["idx", "sentence1", "sentence2"])
 tokenized_datasets = tokenized_datasets.rename_column("label", "labels")
@@ -66,6 +66,7 @@ print("\ntokenized training dataset ", tokenized_datasets["train"])
 
 # Create a small train dataset by selecting the range
 small_train_dataset = tokenized_datasets["train"].select(range(100))
+
 
 #--------------------- DYNAMIC PADDING --------------------#
 # Pad during batching -> less padding then using max length
@@ -88,13 +89,13 @@ for step, batch in enumerate(train_dataloader):
     if step > 5:
         break
 
-
 samples = coll_datasets["train"][:8]
 samples = {k: v for k, v in samples.items()}
 print(f"\n lengths of sentences {[len(x) for x in samples['input_ids']]}")
 
 batch = data_collator(samples)
 print(f"lengths after batching/padding with collator: {[v.shape for k, v in batch.items() if k == 'input_ids']}")
+
 
 
 #--------------------- EXAMPLE --------------------#
@@ -110,8 +111,3 @@ sst2_tokenized = sst2_tokenized.remove_columns(["idx", "sentence"])
 sst2_tokenized = sst2_tokenized.rename_column("label", "labels")
 sst2_tokenized = sst2_tokenized.with_format("torch")
 print(f"\nSST-2 tokenized train dataset: {sst2_tokenized['train']}")
-
-
-
-#-------------------- TRAINER API --------------------#
-# API to fine-tune models on datasets directly -> removing columns, setting format, data collator etc. is done automatically

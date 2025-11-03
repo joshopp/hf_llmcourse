@@ -1,9 +1,12 @@
 from datasets import load_dataset
+import evaluate
+import numpy as np
 from transformers import AutoTokenizer, DataCollatorWithPadding, AutoModelForSequenceClassification
 from transformers import Trainer, TrainingArguments
-import numpy as np
-import evaluate
+import wandb
 
+
+# standard initialization
 raw_datasets = load_dataset("glue", "mrpc")
 checkpoint = "bert-base-uncased"
 model = AutoModelForSequenceClassification.from_pretrained(checkpoint, num_labels=2)
@@ -15,6 +18,8 @@ def tokenize_function(example):
 tokenized_datasets = raw_datasets.map(tokenize_function, batched=True)
 data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
+
+#--------------------- TRAINER API --------------------#
 # Define hyperparams fo Trainer -> local folder to save model checkpoints is required
 training_args = TrainingArguments("../trainer/test_ch3", eval_strategy="epoch")
 training_args_advanced = TrainingArguments(
@@ -36,10 +41,12 @@ trainer = Trainer(
     processing_class=tokenizer, # this sets the default data_collator to DataCollatorWithPadding (skip row before)
 )
 
+
+#--------------------- EVALUATION --------------------#
 # prediction of Trainer to build eval metrics
 eval_preds = trainer.predict(tokenized_datasets["validation"])
 print(f"Predictions Shape: {eval_preds.predictions.shape}, {eval_preds.label_ids.shape}") # outputs = logits
-preds = np.argmax(eval_preds.predictions, axis=-1) # choose higher prob logit
+preds = np.argmax(eval_preds.predictions, axis=-1) # choose highest prob logit
 
 # compute evaluation metrics
 metric = evaluate.load("glue", "mrpc")
@@ -66,28 +73,107 @@ trainer = Trainer(
 trainer.train()
 
 
-# ❯ python3 trainer_api.py
-# Some weights of BertForSequenceClassification were not initialized from the model checkpoint at bert-base-uncased and are newly initialized: ['classifier.bias', 'classifier.weight']
-# You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
-# /home/joshy/Projects/venvs/venv42/lib/python3.10/site-packages/torch/utils/data/dataloader.py:668: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-#   warnings.warn(warn_msg)
-# 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 51/51 [00:12<00:00,  3.96it/s]
-# Predictions Shape: (408, 2), (408,)
-# Downloading builder script: 5.75kB [00:00, 1.66MB/s]
-#   0%|                                                                                                                                                                  | 0/1377 [00:00<?, ?it/s]/home/joshy/Projects/venvs/venv42/lib/python3.10/site-packages/torch/utils/data/dataloader.py:668: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-#   warnings.warn(warn_msg)
-# Downloading builder script: 5.75kB [00:00, 7.51MB/s]███▋                                                                                                     | 459/1377 [09:13<15:33,  1.02s/it]
-# {'eval_loss': 0.3759743869304657, 'eval_accuracy': 0.8357843137254902, 'eval_f1': 0.8873949579831932, 'eval_runtime': 16.124, 'eval_samples_per_second': 25.304, 'eval_steps_per_second': 3.163, 'epoch': 1.0}                                                                                                                                                                                  
-#  33%|██████████████████████████████████████████████████▋                                                                                                     | 459/1377 [09:29<15:33,  1.02s/it/home/joshy/Projects/venvs/venv42/lib/python3.10/site-packages/torch/utils/data/dataloader.py:668: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-#   warnings.warn(warn_msg)
-# {'loss': 0.511, 'grad_norm': 11.539841651916504, 'learning_rate': 3.1880900508351494e-05, 'epoch': 1.09}                                                                                        
-#  67%|█████████████████████████████████████████████████████████████████████████████████████████████████████▎                                                  | 918/1377 [18:19<07:26,  1.03it/s]/home/joshy/Projects/venvs/venv42/lib/python3.10/site-packages/torch/utils/data/dataloader.py:668: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-#   warnings.warn(warn_msg)
-# {'eval_loss': 0.5188243985176086, 'eval_accuracy': 0.8529411764705882, 'eval_f1': 0.8961937716262975, 'eval_runtime': 14.3803, 'eval_samples_per_second': 28.372, 'eval_steps_per_second': 3.547, 'epoch': 2.0}                                                                                                                                                                                 
-#  67%|█████████████████████████████████████████████████████████████████████████████████████████████████████▎                                                  | 918/1377 [18:33<07:26,  1.03it/s/home/joshy/Projects/venvs/venv42/lib/python3.10/site-packages/torch/utils/data/dataloader.py:668: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-#   warnings.warn(warn_msg)
-# {'loss': 0.2557, 'grad_norm': 0.0578889325261116, 'learning_rate': 1.3725490196078432e-05, 'epoch': 2.18}                                                                                       
-# 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1377/1377 [27:20<00:00,  1.02s/it]/home/joshy/Projects/venvs/venv42/lib/python3.10/site-packages/torch/utils/data/dataloader.py:668: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-#   warnings.warn(warn_msg)
-# {'eval_loss': 0.6949222683906555, 'eval_accuracy': 0.8774509803921569, 'eval_f1': 0.9146757679180887, 'eval_runtime': 14.3868, 'eval_samples_per_second': 28.359, 'eval_steps_per_second': 3.545, 'epoch': 3.0}                                                                                                                                                                                 
-# {'train_runtime': 1656.1839, 'train_samples_per_second': 6.644, 'train_steps_per_second': 0.831, 'train_loss': 0.30752470394624865, 'epoch': 3.0} 
+#--------------------- LOSS FUNCTION  --------------------#
+# High initial loss (poor initial predictions), loss decreases over time (training progresses), convergences eventually (finished learning patterns) 
+
+# tracking loss with weights and biases:
+wandb.init(project="transformer-fine-tuning", name="bert-mrpc-analysis")
+
+training_args = TrainingArguments(
+    output_dir="./results",
+    eval_strategy="steps",
+    eval_steps=50,
+    save_steps=100,
+    logging_steps=10,  # log metrics every 10 steps
+    num_train_epochs=3,
+    per_device_train_batch_size=16,
+    per_device_eval_batch_size=16,
+    report_to="wandb",  # send logs to Weights & Biases
+)
+
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=tokenized_datasets["train"],
+    eval_dataset=tokenized_datasets["validation"],
+    data_collator=data_collator,
+    processing_class=tokenizer,
+    compute_metrics=compute_metrics,
+)
+
+# automatically log metrics while training
+trainer.train()
+
+# Monitor during training:
+    # Loss convergence: Is the loss still decreasing or has it plateaued?
+    # Overfitting signs: Is validation loss starting to increase while training loss decreases?
+    # Learning rate: Are the curves too erratic (LR too high) or too flat (LR too low)?
+    # Stability: Are there sudden spikes or drops that indicate problems?
+
+# Monitoring after training:
+    # Final performance: Did the model reach acceptable performance levels?
+    # Efficiency: Could the same performance be achieved with fewer epochs?
+    # Generalization: How close are training and validation performance?
+    # Trends: Would additional training likely improve performance?
+
+
+#--------------------- ISSUES: OVERFITTING  --------------------#
+# Symptoms:
+    # Training loss continues to decrease while validation loss increases or plateaus
+    # Large gap between training and validation accuracy
+    # Training accuracy much higher than validation accuracy
+# Solutions:
+    # Regularization: Add dropout, weight decay, or other regularization techniques
+    # Early stopping: Stop training when validation performance stops improving
+    # Data augmentation: Increase training data diversity
+    # Reduce model complexity: Use a smaller model or fewer parameters
+
+# Example of detecting overfitting: Add early stopping callback to trainer
+from transformers import EarlyStoppingCallback
+
+training_args = TrainingArguments(
+    output_dir="./results",
+    eval_strategy="steps",
+    eval_steps=100,
+    save_strategy="steps",
+    save_steps=100,
+    load_best_model_at_end=True,
+    metric_for_best_model="eval_loss",
+    greater_is_better=False,
+    num_train_epochs=10,  # Set high, but we'll stop early
+)
+
+# Add early stopping to prevent overfitting
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=tokenized_datasets["train"],
+    eval_dataset=tokenized_datasets["validation"],
+    data_collator=data_collator,
+    processing_class=tokenizer,
+    compute_metrics=compute_metrics,
+    callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
+)
+
+#--------------------- ISSUES: UNDERFITTING  --------------------#
+# Symptoms:
+    # Both training and validation loss remain high
+    # Model performance plateaus early in training
+    # Training accuracy is lower than expected
+# Solutions:
+    # Increase model capacity: Use a larger model or more parameters
+    # Train longer: Increase the number of epochs
+    # Adjust learning rate: Try different learning rates (usually too low)
+    # Check data quality: Ensure your data is properly preprocessed
+
+#--------------------- ISSUES: ERRATIC LR  --------------------#
+# Symptoms:
+    # Frequent fluctuations in loss or accuracy
+    # Curves show high variance or instability
+    # Performance oscillates without clear trend
+    # Both training and validation curves show erratic beha
+# Solutions:
+    # Lower learning rate: Reduce step size for more stable training
+    # Increase batch size: Larger batches provide more stable gradients
+    # Gradient clipping: Prevent exploding gradients
+    # Better data preprocessing: Ensure consistent data quality
