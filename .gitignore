@@ -209,3 +209,4 @@ __marimo__/
 *.webp
 models/
 trainer/
+datasets/
